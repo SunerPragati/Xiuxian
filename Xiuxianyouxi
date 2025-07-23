@@ -338,7 +338,7 @@ elseif chuyenTheCount > 0 and maxUnlockedKiep == 0 then
 end
 
 local tuLuyen = false
-local heSoLinhCan = 9000000000000000000000 -- Tốc độ tu luyện
+local heSoLinhCan = 9888000000000000000000 -- Tốc độ tu luyện
 local isMovementLocked = false
 local tuLuyenTrack = nil
 
@@ -348,13 +348,13 @@ local flyJumpBoost = 250 -- Lực nhảy cao hơn
 local flySpeed = 50 -- Tốc độ đi bộ khi bay
 local originalGravity = game.Workspace.Gravity -- Lấy trọng lực gốc của game
 local slowFallGravity = 20 -- Trọng lực khi rơi từ từ (Kim Đan Tầng 1)
-local defaultWalkSpeed = 16
-local defaultJumpPower = 50
-local airJumpForce = 80 -- Lực đẩy mỗi lần nhảy trên không
+local defaultWalkSpeed = 30
+local defaultJumpPower = 100
+local airJumpForce = 100 -- Lực đẩy mỗi lần nhảy trên không
 
 -- NEW: Chi phí Chân Nguyên cho Thân Thể
-local CHAN_NGUYEN_PER_JUMP_COST = 50 -- Chi phí mỗi lần nhảy trên không (Infjump)
-local CHAN_NGUYEN_PER_SECOND_MOVE_COST = 5 -- Chi phí mỗi giây di chuyển
+local CHAN_NGUYEN_PER_JUMP_COST = 500 -- Chi phí mỗi lần nhảy trên không (Infjump)
+local CHAN_NGUYEN_PER_SECOND_MOVE_COST = 50 -- Chi phí mỗi giây di chuyển
 
 -- NEW: Biến cho chức năng Tu Sĩ
 local isTuSiActive = false -- Trạng thái của chế độ Tu Sĩ
@@ -418,12 +418,12 @@ local function updateActionButtonsVisibility()
 		chuyenTheFrame.Visible = false
 
 		if tuVi >= maxTuVi then
-			dotPhaButton.Text = "Đột Phá (B)"
+			dotPhaButton.Text = "Đột Phá"
 			dotPhaButton.Active = true
 			dotPhaButton.BackgroundTransparency = 0.5
 			print("DEBUG: Đột Phá button is active and visible (Tu Vi đủ).")
 		else
-			dotPhaButton.Text = "Đột Phá (B)" -- Vẫn hiển thị "Đột Phá (B)" nhưng nút bị vô hiệu hóa
+			dotPhaButton.Text = "Đột Phá" -- Vẫn hiển thị "Đột Phá" nhưng nút bị vô hiệu hóa
 			dotPhaButton.Active = false
 			dotPhaButton.BackgroundTransparency = 0.8
 			print("DEBUG: Đột Phá button is inactive and visible (Tu Vi chưa đủ).")
@@ -438,7 +438,7 @@ local function updateActionButtonsVisibility()
 		end
 	end
 	-- Cập nhật text cho nút Tu Luyện
-	tuLuyenButton.Text = tuLuyen and "Dừng Tu Luyện" or "Tu Luyện (C)"
+	tuLuyenButton.Text = tuLuyen and "Dừng Tu Luyện" or "Tu Luyện"
 	tuLuyenButton.BackgroundTransparency = tuLuyen and 0.2 or 0.5
 
 	-- Cập nhật text cho nút Thân Thể
@@ -1153,7 +1153,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
 	-- Khí tự động hồi phục (chỉ khi không tu luyện)
 	if not tuLuyen and currentKi < maxKi then
-		currentKi = math.min(maxKi, currentKi + 1 * deltaTime) -- Hồi 1 Khí mỗi giây
+		currentKi = math.min(maxKi, currentKi + 9888000000000000000000 * deltaTime) -- Hồi 1 Khí mỗi giây
 		setAttribute("Ki", currentKi)
 		updateUI()
 	end
