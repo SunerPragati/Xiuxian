@@ -1,0 +1,419 @@
+local main = Instance.new("ScreenGui")
+local Frame = Instance.new("Frame")
+local FrameGlow = Instance.new("UIStroke")
+local onof = Instance.new("TextButton") -- Nút Phi Hành chính
+local tangtoc = Instance.new("TextButton")
+local speed = Instance.new("TextLabel")
+local giamtoc = Instance.new("TextButton")
+
+-- Hằng số tiêu hao Chân Nguyên
+local CHAN_NGUYEN_TIEN_HAO_MOI_GIY = 5 -- Tiêu hao 5 Chân Nguyên mỗi giây khi Phi Hành
+
+-- Cài đặt ScreenGui chính
+main.Name = "main"
+main.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+main.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+main.ResetOnSpawn = false
+
+-- Cài đặt Frame chính (khung bao ngoài UI)
+Frame.Parent = main
+Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15) -- Nền tối
+Frame.BackgroundTransparency = 0.1 -- Hơi trong suốt
+Frame.BorderSizePixel = 0 -- Không viền cứng
+Frame.Position = UDim2.new(0.1, 0, 0.35, 0)
+Frame.Size = UDim2.new(0, 200, 0, 100) -- Đã THU NHỎ KÍCH THƯỚC UI
+Frame.Active = true
+Frame.Draggable = true
+Frame.Visible = true -- UI LUÔN HIỂN THỊ
+
+-- UIStroke cho Frame chính (hiệu ứng viền phát sáng)
+FrameGlow.Thickness = 2
+FrameGlow.Color = Color3.fromRGB(0, 255, 200)
+FrameGlow.Parent = Frame
+
+-- Nút Phi Hành (lớn, bên trái, chiếm gần nửa UI)
+onof.Name = "onof"
+onof.Parent = Frame
+onof.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+onof.BackgroundTransparency = 0.5
+onof.BorderSizePixel = 0
+onof.Position = UDim2.new(0.05, 0, 0.05, 0) -- Vị trí bên trái
+onof.Size = UDim2.new(0.45, 0, 0.9, 0) -- Chiếm gần nửa ngang và gần hết chiều cao
+onof.Font = Enum.Font.GothamSemibold
+onof.Text = "Phi Hành"
+onof.TextColor3 = Color3.fromRGB(200, 255, 255)
+onof.TextSize = 20 -- Giảm kích thước chữ để phù hợp UI nhỏ hơn
+onof.TextScaled = false
+onof.TextWrapped = true
+
+-- Nhóm điều khiển tốc độ (bên phải)
+-- Nút Tăng Tốc
+tangtoc.Name = "Tăng Tốc"
+tangtoc.Parent = Frame
+tangtoc.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+tangtoc.BackgroundTransparency = 0.5
+tangtoc.BorderSizePixel = 0
+tangtoc.Position = UDim2.new(0.55, 0, 0.05, 0) -- Bắt đầu từ 55% ngang
+tangtoc.Size = UDim2.new(0.4, 0, 0.28, 0) -- Chiếm 1/3 chiều cao của phần bên phải
+tangtoc.Font = Enum.Font.GothamSemibold
+tangtoc.Text = "+"
+tangtoc.TextColor3 = Color3.fromRGB(200, 255, 255)
+tangtoc.TextScaled = false
+tangtoc.TextSize = 18 -- Giảm kích thước chữ
+tangtoc.TextWrapped = true
+
+-- Hiển thị Tốc Độ
+speed.Name = "Tốc Độ"
+speed.Parent = Frame
+speed.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speed.BackgroundTransparency = 0.5
+speed.BorderSizePixel = 0
+speed.Position = UDim2.new(0.55, 0, 0.38, 0) -- Ở giữa phần bên phải
+speed.Size = UDim2.new(0.4, 0, 0.28, 0)
+speed.Font = Enum.Font.GothamSemibold
+speed.Text = "1"
+speed.TextColor3 = Color3.fromRGB(200, 255, 255)
+speed.TextScaled = false
+speed.TextSize = 18 -- Giảm kích thước chữ
+speed.TextWrapped = true
+
+-- Nút Giảm Tốc
+giamtoc.Name = "Giảm Tốc"
+giamtoc.Parent = Frame
+giamtoc.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+giamtoc.BackgroundTransparency = 0.5
+giamtoc.BorderSizePixel = 0
+giamtoc.Position = UDim2.new(0.55, 0, 0.71, 0) -- Ở dưới cùng phần bên phải
+giamtoc.Size = UDim2.new(0.4, 0, 0.28, 0)
+giamtoc.Font = Enum.Font.GothamSemibold
+giamtoc.Text = "-"
+giamtoc.TextColor3 = Color3.fromRGB(200, 255, 255)
+giamtoc.TextScaled = false
+giamtoc.TextSize = 18 -- Giảm kích thước chữ
+giamtoc.TextWrapped = true
+
+
+local speeds = 1
+
+local player = game.Players.LocalPlayer
+local chr = player.Character or player.CharacterAdded:Wait()
+local hum = chr:FindFirstChildWhichIsA("Humanoid")
+
+local nowe = false
+local chanNguyenConsumptionConnection = nil
+
+game:GetService("StarterGui"):SetCore("SendNotification", {
+	Title = "PHI HÀNH GUI";
+	Text = "Bởi XNEO";
+	Icon = "rbxthumb://type=Asset&id=5107182114&w=150&h=150"
+})
+Duration = 5;
+
+local function updateChanNguyenAndFlyState()
+	local currentChanNguyen = player:GetAttribute("ChanNguyen") or 0
+
+	if currentChanNguyen >= CHAN_NGUYEN_TIEN_HAO_MOI_GIY then
+		player:SetAttribute("ChanNguyen", currentChanNguyen - CHAN_NGUYEN_TIEN_HAO_MOI_GIY)
+	else
+		if nowe == true then
+			nowe = false
+
+			if chanNguyenConsumptionConnection then
+				chanNguyenConsumptionConnection:Disconnect()
+				chanNguyenConsumptionConnection = nil
+			end
+
+			hum:SetStateEnabled(Enum.HumanoidStateType.Climbing,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Flying,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Freefall,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Landed,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Running,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Seated,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics,true)
+			hum:SetStateEnabled(Enum.HumanoidStateType.Swimming,true)
+			hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+
+			if player.Character and player.Character.Animate then
+				player.Character.Animate.Disabled = false
+				for i,v in next, hum:GetPlayingAnimationTracks() do
+					v:AdjustSpeed(1)
+				end
+			end
+		end
+	end
+end
+
+onof.MouseButton1Down:connect(function()
+	if nowe == true then
+		nowe = false
+
+		if chanNguyenConsumptionConnection then
+			chanNguyenConsumptionConnection:Disconnect()
+			chanNguyenConsumptionConnection = nil
+		end
+
+		hum:SetStateEnabled(Enum.HumanoidStateType.Climbing,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Flying,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Freefall,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Landed,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Physics,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Running,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Seated,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics,true)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Swimming,true)
+		hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+
+		if player.Character and player.Character.Animate then
+			player.Character.Animate.Disabled = false
+			for i,v in next, hum:GetPlayingAnimationTracks() do
+				v:AdjustSpeed(1)
+			end
+		end
+
+	else
+		local currentChanNguyen = player:GetAttribute("ChanNguyen") or 0
+		if currentChanNguyen < CHAN_NGUYEN_TIEN_HAO_MOI_GIY then
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Lỗi Phi Hành";
+				Text = "Không đủ Chân Nguyên để Phi Hành! Cần ít nhất " .. CHAN_NGUYEN_TIEN_HAO_MOI_GIY .. " Chân Nguyên.";
+				Icon = "rbxthumb://type=Asset&id=5107182114&w=150&h=150"
+			})
+			return
+		end
+
+		nowe = true
+
+		if not chanNguyenConsumptionConnection then
+			chanNguyenConsumptionConnection = game:GetService("RunService").Heartbeat:Connect(function()
+				updateChanNguyenAndFlyState()
+			end)
+		end
+
+
+		for i = 1, speeds do
+			spawn(function()
+				local hb = game:GetService("RunService").Heartbeat
+				local char = player.Character
+				local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+				while nowe and hb:Wait() and char and humanoid and humanoid.Parent do
+					if humanoid.MoveDirection.Magnitude > 0 then
+						char:TranslateBy(humanoid.MoveDirection)
+					end
+				end
+			end)
+		end
+
+		if player.Character and player.Character.Animate then
+			player.Character.Animate.Disabled = true
+		end
+		for i,v in next, hum:GetPlayingAnimationTracks() do
+			v:AdjustSpeed(0)
+		end
+		hum:SetStateEnabled(Enum.HumanoidStateType.Climbing,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Flying,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Freefall,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Landed,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Running,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.RunningNoPhysics,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Seated,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.StrafingNoPhysics,false)
+		hum:SetStateEnabled(Enum.HumanoidStateType.Swimming,false)
+		hum:ChangeState(Enum.HumanoidStateType.Swimming)
+	end
+
+	if player.Character:FindFirstChildOfClass("Humanoid").RigType == Enum.HumanoidRigType.R6 then
+		local torso = player.Character.Torso
+		local flying = true
+		local deb = true
+		local ctrl = {f = 0, b = 0, l = 0, r = 0}
+		local lastctrl = {f = 0, b = 0, l = 0, r = 0}
+		local maxspeed = 50
+		local fly_speed = 0
+
+		local bg = Instance.new("BodyGyro", torso)
+		bg.P = 9e4
+		bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+		bg.cframe = torso.CFrame
+		local bv = Instance.new("BodyVelocity", torso)
+		bv.velocity = Vector3.new(0,0.1,0)
+		bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+		if nowe == true then
+			hum.PlatformStand = true
+		end
+		while nowe == true do
+			game:GetService("RunService").RenderStepped:Wait()
+
+			if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
+				fly_speed = fly_speed+.5+(fly_speed/maxspeed)
+				if fly_speed > maxspeed then
+					fly_speed = maxspeed
+				end
+			elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and fly_speed ~= 0 then
+				fly_speed = fly_speed-1
+				if fly_speed < 0 then
+					fly_speed = 0
+				end
+			end
+			if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
+				bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.lookVector * (ctrl.f+ctrl.b)) + ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(ctrl.l+ctrl.r,(ctrl.f+ctrl.b)*.2,0).p) - game.Workspace.CurrentCamera.CoordinateFrame.p))*fly_speed
+				lastctrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
+			elseif (ctrl.l + ctrl.r) == 0 and (ctrl.f + ctrl.b) == 0 and fly_speed ~= 0 then
+				bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.lookVector * (lastctrl.f+lastctrl.b)) + ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lastctrl.l+lastctrl.r,(lastctrl.f+lastctrl.b)*.2,0).p) - game.Workspace.CurrentCamera.CoordinateFrame.p))*fly_speed
+			else
+				bv.velocity = Vector3.new(0,0,0)
+			end
+			bg.cframe = game.Workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad((ctrl.f+ctrl.b)*50*fly_speed/maxspeed),0,0)
+		end
+		ctrl = {f = 0, b = 0, l = 0, r = 0}
+		lastctrl = {f = 0, b = 0, l = 0, r = 0}
+		fly_speed = 0
+		bg:Destroy()
+		bv:Destroy()
+		hum.PlatformStand = false
+		if player.Character and player.Character.Animate then
+			player.Character.Animate.Disabled = false
+		end
+	else -- RigType.R15
+		local UpperTorso = player.Character.UpperTorso
+		local flying = true
+		local deb = true
+		local ctrl = {f = 0, b = 0, l = 0, r = 0}
+		local lastctrl = {f = 0, b = 0, l = 0, r = 0}
+		local maxspeed = 50
+		local fly_speed = 0
+
+
+		local bg = Instance.new("BodyGyro", UpperTorso)
+		bg.P = 9e4
+		bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+		bg.cframe = UpperTorso.CFrame
+		local bv = Instance.new("BodyVelocity", UpperTorso)
+		bv.velocity = Vector3.new(0,0.1,0)
+		bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+		if nowe == true then
+			hum.PlatformStand = true
+		end
+		while nowe == true do
+			wait()
+
+			if ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0 then
+				fly_speed = fly_speed+.5+(fly_speed/maxspeed)
+				if fly_speed > maxspeed then
+					fly_speed = maxspeed
+				end
+			elseif not (ctrl.l + ctrl.r ~= 0 or ctrl.f + ctrl.b ~= 0) and fly_speed ~= 0 then
+				fly_speed = fly_speed-1
+				if fly_speed < 0 then
+					fly_speed = 0
+				end
+			end
+			if (ctrl.l + ctrl.r) ~= 0 or (ctrl.f + ctrl.b) ~= 0 then
+				bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.lookVector * (ctrl.f+ctrl.b)) + ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(ctrl.l+ctrl.r,(ctrl.f+ctrl.b)*.2,0).p) - game.Workspace.CurrentCamera.CoordinateFrame.p))*fly_speed
+				lastctrl = {f = ctrl.f, b = ctrl.b, l = ctrl.l, r = ctrl.r}
+			elseif (ctrl.l + ctrl.r) == 0 and (ctrl.f + ctrl.b) == 0 and fly_speed ~= 0 then
+				bv.velocity = ((game.Workspace.CurrentCamera.CoordinateFrame.lookVector * (lastctrl.f+lastctrl.b)) + ((game.Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lastctrl.l+lastctrl.r,(lastctrl.f+lastctrl.b)*.2,0).p) - game.Workspace.CurrentCamera.CoordinateFrame.p))*fly_speed
+			else
+				bv.velocity = Vector3.new(0,0,0)
+			end
+
+			bg.cframe = game.Workspace.CurrentCamera.CoordinateFrame * CFrame.Angles(-math.rad((ctrl.f+ctrl.b)*50*fly_speed/maxspeed),0,0)
+		end
+		ctrl = {f = 0, b = 0, l = 0, r = 0}
+		lastctrl = {f = 0, b = 0, l = 0, r = 0}
+		fly_speed = 0
+		bg:Destroy()
+		bv:Destroy()
+		hum.PlatformStand = false
+		if player.Character and player.Character.Animate then
+			player.Character.Animate.Disabled = false
+		end
+	end
+end)
+
+
+-- Xử lý khi nhân vật thêm lại (chết/hồi sinh)
+player.CharacterAdded:Connect(function(newChar)
+	chr = newChar
+	hum = newChar:FindFirstChildWhichIsA("Humanoid")
+	wait(0.7)
+	hum.PlatformStand = false
+	if newChar.Animate then
+		newChar.Animate.Disabled = false
+	end
+	nowe = false
+	if chanNguyenConsumptionConnection then
+		chanNguyenConsumptionConnection:Disconnect()
+		chanNguyenConsumptionConnection = nil
+	end
+end)
+
+tangtoc.MouseButton1Down:connect(function()
+	speeds = speeds + 1
+	speed.Text = speeds
+	if nowe == true then
+		local char = player.Character
+		local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+		if humanoid then
+			for i,v in next, humanoid:GetPlayingAnimationTracks() do
+				v:AdjustSpeed(0)
+			end
+		end
+
+		spawn(function()
+			local hb = game:GetService("RunService").Heartbeat
+			while nowe and hb:Wait() and player.Character and player.Character:FindFirstChildWhichIsA("Humanoid") and player.Character:FindFirstChildWhichIsA("Humanoid").Parent do
+				if player.Character:FindFirstChildWhichIsA("Humanoid").MoveDirection.Magnitude > 0 then
+					player.Character:TranslateBy(player.Character:FindFirstChildWhichIsA("Humanoid").MoveDirection * speeds)
+				end
+			end
+		end)
+	end
+end)
+
+giamtoc.MouseButton1Down:connect(function()
+	if speeds == 1 then
+		speed.Text = 'Không thể ít hơn 1'
+		wait(1)
+		speed.Text = speeds
+	else
+		speeds = speeds - 1
+		speed.Text = speeds
+		if nowe == true then
+			local char = player.Character
+			local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+			if humanoid then
+				for i,v in next, humanoid:GetPlayingAnimationTracks() do
+					v:AdjustSpeed(0)
+				end
+			end
+
+			spawn(function()
+				local hb = game:GetService("RunService").Heartbeat
+				while nowe and hb:Wait() and player.Character and player.Character:FindFirstChildWhichIsA("Humanoid") and player.Character:FindFirstChildWhichIsA("Humanoid").Parent do
+					if player.Character:FindFirstChildWhichIsA("Humanoid").MoveDirection.Magnitude > 0 then
+						player.Character:TranslateBy(player.Character:FindFirstChildWhichIsA("Humanoid").MoveDirection * speeds)
+					end
+				end
+			end)
+		end
+	end
+end)
