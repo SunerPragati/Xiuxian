@@ -912,7 +912,7 @@ local function dotPha()
 				-- Advance to next realm
 				canhGioiIndex = canhGioiIndex + 1
 				tang = 1 -- New realm starts at Tầng 1
-				maxTuVi = maxTuVi * 2 -- MaxTuVi doubles for new realm
+				maxTuVi = maxTuVi * 0.2 -- MaxTuVi doubles for new realm
 				setAttribute("MaxTuVi", maxTuVi)
 				-- Buff for new realm
 				local baseBuff = 1000 * (canhGioiIndex^3)
@@ -1153,7 +1153,7 @@ RunService.Heartbeat:Connect(function(deltaTime)
 
 	-- Khí tự động hồi phục (chỉ khi không tu luyện)
 	if not tuLuyen and currentKi < maxKi then
-		currentKi = math.min(maxKi, currentKi + 9888000000000000000000 * deltaTime) -- Hồi 1 Khí mỗi giây
+		currentKi = math.min(maxKi, currentKi + 1 * deltaTime) -- Hồi 1 Khí mỗi giây
 		setAttribute("Ki", currentKi)
 		updateUI()
 	end
