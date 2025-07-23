@@ -1,0 +1,1262 @@
+-- 📜 Tu Tiên Hack UI Script
+-- Tác giả: Tu Tiên Giả
+
+print("DEBUG: Script started! Attempting to initialize UI...")
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
+
+local player = Players.LocalPlayer
+local gui = player:WaitForChild("PlayerGui")
+print("DEBUG: PlayerGui found:", gui)
+
+-- === ĐỊNH NGHĨA TỌA ĐỘ CÁC THẾ GIỚI ===
+-- Tu Tiên Giới cách Phàm Giới 10 dặm (khoảng 16000 studs) theo trục Z
+local PHAM_GIOI_POS = Vector3.new(0, 50, 0)
+local TU_TIEN_GIOI_POS = Vector3.new(0, 0, 500) -- ĐÃ CHỈNH LẠI VỊ TRÍ TU TIÊN GIỚI GẦN HƠN
+
+-- === KÍCH THƯỚC VÀ MÀU SẮC CỦA NỀN TẢNG THẾ GIỚI (PLACEHOLDER) ===
+local WORLD_PLATFORM_SIZE_PHAM_GIOI = Vector3.new(200, 5, 200) -- Kích thước 200x200 mét (studs)
+local WORLD_PLATFORM_SIZE_TU_TIEN = Vector3.new(150, 5, 150) -- Tăng kích thước lên một chút cho vườn hoa (150x150)
+
+local PHAM_GIOI_COLOR = Color3.fromRGB(100, 150, 100) -- Màu xanh lá cây nhạt
+local TU_TIEN_GIOI_COLOR = Color3.fromRGB(85, 170, 0) -- Màu xanh lá cây đậm hơn cho Tu Tiên Giới (cỏ)
+
+-- 🧱 UI Khởi tạo chính (ScreenGui)
+local mainUI = Instance.new("ScreenGui")
+mainUI.Name = "TuTienUI"
+mainUI.ResetOnSpawn = false
+mainUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+mainUI.Parent = gui
+print("DEBUG: ScreenGui 'TuTienUI' created and parented to PlayerGui.")
+
+-- === KHUNG MENU CHÍNH CHỨA TẤT CẢ UI ===
+-- Kích thước các thành phần con
+local thuocTinhFrameWidth = 320
+local thuocTinhFrameHeight = 230
+local actionButtonWidth = 120
+local actionButtonHeight = 40
+local worldButtonWidth = 150 -- Kích thước cho nút thế giới
+
+local gapBetweenThuocTinhAndButtons = 10 -- Khoảng cách giữa Thuộc Tính và 3 nút
+local gapBetweenButtons = 10 -- Khoảng cách giữa các nút hành động
+local gapBetweenMainSections = 20 -- Khoảng cách giữa khối Thuộc Tính+Nút và Khối Nút Thế Giới
+local padding = 10 -- Khoảng đệm bên trong FullMenuFrame
+
+-- Tính toán Y offsets cho các nút hành động
+local tuLuyenYOffset = 0
+local dotPhaYOffset = tuLuyenYOffset + actionButtonHeight + gapBetweenButtons
+local thanTheYOffset = dotPhaYOffset + actionButtonHeight + gapBetweenButtons -- Thân Thể dưới Đột Phá
+local tuSiYOffset = thanTheYOffset + actionButtonHeight + gapBetweenButtons -- NEW: Tu Sĩ dưới Thân Thể
+
+-- Tính toán kích thước của FullMenuFrame
+-- Chiều rộng: padding trái + chiều rộng Thuộc Tính + khoảng cách + chiều rộng nút Hành Động + padding phải
+local fullMenuFrameTotalWidth = padding + thuocTinhFrameWidth + gapBetweenThuocTinhAndButtons + actionButtonWidth + padding
+-- Chiều cao: Đảm bảo đủ cao để chứa cả Thuộc Tính Frame và các nút hành động
+local fullMenuFrameTotalHeight = math.max(padding + thuocTinhFrameHeight + padding, padding + tuSiYOffset + actionButtonHeight + padding)
+
+
+local fullMenuFrame = Instance.new("Frame")
+fullMenuFrame.Name = "FullMenuFrame"
+fullMenuFrame.Position = UDim2.new(0, 20, 0, 20) -- Vị trí ban đầu của menu trên màn hình
+fullMenuFrame.Size = UDim2.new(0, fullMenuFrameTotalWidth, 0, fullMenuFrameTotalHeight)
+fullMenuFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+fullMenuFrame.BackgroundTransparency = 0.1
+fullMenuFrame.BorderSizePixel = 0
+fullMenuFrame.Active = true
+fullMenuFrame.Draggable = true
+fullMenuFrame.Visible = false -- Ban đầu ẩn đi
+fullMenuFrame.Parent = mainUI
+print("DEBUG: FullMenuFrame created and parented to PlayerGui.")
+
+local fullMenuGlow = Instance.new("UIStroke")
+fullMenuGlow.Thickness = 2
+fullMenuGlow.Color = Color3.fromRGB(0, 255, 200)
+fullMenuGlow.Parent = fullMenuFrame
+print("DEBUG: UIStroke created for FullMenuFrame.")
+
+-- === NÚT MỞ/ĐÓNG MENU ===
+local toggleMenuButton = Instance.new("TextButton")
+toggleMenuButton.Name = "ToggleMenuButton"
+toggleMenuButton.Size = UDim2.new(0, 100, 0, 30)
+toggleMenuButton.Position = UDim2.new(0, 10, 0, 10) -- Vị trí cố định (góc trên bên trái màn hình)
+toggleMenuButton.Text = "Mở Menu"
+toggleMenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleMenuButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleMenuButton.BackgroundTransparency = 0
+toggleMenuButton.BorderSizePixel = 0
+toggleMenuButton.Font = Enum.Font.GothamSemibold
+toggleMenuButton.TextSize = 14
+toggleMenuButton.Parent = mainUI
+print("DEBUG: ToggleMenuButton created.")
+
+toggleMenuButton.MouseButton1Click:Connect(function()
+	fullMenuFrame.Visible = not fullMenuFrame.Visible
+	toggleMenuButton.Text = fullMenuFrame.Visible and "Đóng Menu" or "Mở Menu"
+	print("DEBUG: Menu visibility toggled: " .. tostring(fullMenuFrame.Visible))
+end)
+
+-- *** UI THUỘC TÍNH ***
+local thuocTinhFrame = Instance.new("Frame")
+thuocTinhFrame.Name = "ThuocTinhFrame"
+thuocTinhFrame.Position = UDim2.new(0, padding, 0, padding) -- Vị trí bên trong fullMenuFrame (có padding)
+thuocTinhFrame.Size = UDim2.new(0, thuocTinhFrameWidth, 0, thuocTinhFrameHeight)
+thuocTinhFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+thuocTinhFrame.BackgroundTransparency = 0.2
+thuocTinhFrame.BorderSizePixel = 0
+thuocTinhFrame.Parent = fullMenuFrame -- Parent là fullMenuFrame
+print("DEBUG: ThuocTinhFrame created and parented to FullMenuFrame.")
+
+local thuocTinhFrameGlow = Instance.new("UIStroke")
+thuocTinhFrameGlow.Thickness = 2
+thuocTinhFrameGlow.Color = Color3.fromRGB(0, 255, 200)
+thuocTinhFrameGlow.Parent = thuocTinhFrame
+print("DEBUG: UIStroke created for ThuocTinhFrame.")
+
+-- 🔠 Helper function để tạo TextLabel
+local function createTextLabel(name, text, posY, parentFrame, sizeXScale, sizeXOffset, posXOffset)
+	local parent = parentFrame or thuocTinhFrame -- Mặc định parent là thuocTinhFrame
+	local label = Instance.new("TextLabel")
+	label.Name = name
+	label.Size = UDim2.new(sizeXScale or 1, sizeXOffset or -20, 0, 20)
+	label.Position = UDim2.new(0, posXOffset or 10, 0, posY)
+	label.BackgroundTransparency = 1
+	label.Text = text
+	label.TextColor3 = Color3.fromRGB(200, 255, 255)
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Font = Enum.Font.GothamSemibold
+	label.TextSize = 16
+	label.Parent = parent
+	print("DEBUG: TextLabel '" .. name .. "' created.")
+	return label
+end
+
+-- 🧾 Dòng thuộc tính (parent mặc định là thuocTinhFrame)
+local canhGioiLabel = createTextLabel("CanhGioi", "Cảnh Giới: Luyện Khí Tầng 1", 0)
+local linhCanLabel = createTextLabel("LinhCan", "Linh Căn: Thần Phẩm ", 25)
+local theChatLabel = createTextLabel("TheChat", "Thể Chất: ", 50)
+local khiHuyetLabel = createTextLabel("KhiHuyet", "Khí Huyết: 100", 75)
+local chanNguyenLabel = createTextLabel("ChanNguyen", "Chân Nguyên: 100", 100)
+local ageLabel = createTextLabel("Age", "Tuổi: 20", 125)
+print("DEBUG: All attribute labels created.")
+
+-- 🌀 Thanh Tu Vi (parent là thuocTinhFrame)
+local tuViBackground = Instance.new("Frame")
+tuViBackground.Name = "TuViBG"
+tuViBackground.Size = UDim2.new(1, -20, 0, 15)
+tuViBackground.Position = UDim2.new(0, 10, 1, -25) -- Cố định ở đáy frame
+tuViBackground.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+tuViBackground.BorderSizePixel = 0
+tuViBackground.Parent = thuocTinhFrame
+print("DEBUG: TuViBackground frame created.")
+
+local tuViBar = Instance.new("Frame")
+tuViBar.Name = "TuViBar"
+tuViBar.Size = UDim2.new(0, 0, 1, 0)
+tuViBar.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+tuViBar.BorderSizePixel = 0
+tuViBar.Parent = tuViBackground
+print("DEBUG: TuViBar created.")
+
+local barGlow = Instance.new("UIStroke")
+barGlow.Thickness = 1
+barGlow.Color = Color3.fromRGB(0, 255, 255)
+barGlow.Parent = tuViBar
+print("DEBUG: BarGlow created for TuViBar.")
+
+-- === CÁC NÚT HÀNH ĐỘNG (Tu Luyện, Đột Phá, Chuyển Thế, Thân Thể, Tu Sĩ) - ĐÍNH CHẶT VÀO FULL MENU FRAME ===
+-- Vị trí bắt đầu của các nút hành động (bên phải của ThuocTinhFrame, có padding)
+local actionButtonsStartX = padding + thuocTinhFrameWidth + gapBetweenThuocTinhAndButtons
+
+-- Helper function for creating action frames/buttons inside fullMenuFrame
+local function createActionButtonUI(frameName, buttonName, buttonText, yOffset)
+	local frame = Instance.new("Frame")
+	frame.Name = frameName
+	frame.Position = UDim2.new(0, actionButtonsStartX, 0, padding + yOffset) -- Vị trí X cố định, Y thay đổi
+	frame.Size = UDim2.new(0, actionButtonWidth, 0, actionButtonHeight)
+	frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	frame.BackgroundTransparency = 0.2
+	frame.BorderSizePixel = 0
+	frame.Parent = fullMenuFrame -- Parent là fullMenuFrame
+
+	local frameGlow = Instance.new("UIStroke")
+	frameGlow.Thickness = 2
+	frameGlow.Color = Color3.fromRGB(0, 255, 200)
+	frameGlow.Parent = frame
+
+	local button = Instance.new("TextButton")
+	button.Name = buttonName
+	button.Size = UDim2.new(1, 0, 1, 0)
+	button.Position = UDim2.new(0, 0, 0, 0)
+	button.Text = buttonText
+	button.TextColor3 = Color3.fromRGB(200, 255, 255)
+	button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	button.BackgroundTransparency = 0.5
+	button.BorderSizePixel = 0
+	button.Font = Enum.Font.GothamSemibold
+	button.TextSize = 16
+	button.Parent = frame
+
+	return frame, button
+end
+
+-- Tu Luyện UI (ở trên cùng, dính vào Thuộc Tính)
+local tuLuyenFrame, tuLuyenButton = createActionButtonUI("TuLuyenFrame", "TuLuyenButton", "Tu Luyện (C)", tuLuyenYOffset)
+
+-- Đột Phá UI (ở giữa)
+local dotPhaFrame, dotPhaButton = createActionButtonUI("DotPhaFrame", "DotPhaButton", "Đột Phá (B)", dotPhaYOffset)
+
+-- Chuyển Thế UI (xuất hiện ở vị trí của Đột Phá khi đủ điều kiện)
+local chuyenTheFrame, chuyenTheButton = createActionButtonUI("ChuyenTheFrame", "ChuyenTheButton", "Chuyển Thế (V)", dotPhaYOffset)
+chuyenTheFrame.Visible = false
+
+-- NEW: Thân Thể UI (dưới Đột Phá/Chuyển Thế)
+local thanTheFrame, thanTheButton = createActionButtonUI("ThanTheFrame", "ThanTheButton", "Thân Thể", thanTheYOffset) -- Đã đổi text
+
+-- NEW: Tu Sĩ UI (dưới Thân Thể)
+local tuSiFrame, tuSiButton = createActionButtonUI("TuSiFrame", "TuSiButton", "Tu Sĩ", tuSiYOffset) -- ĐÃ SỬA TEXT TU SĨ
+
+print("DEBUG: Action UI Frames and Buttons created.")
+
+-- REMOVED: InfJumpLabel (user clarified it's not a UI element)
+
+
+-- Xóa Mobile Controls Frame (vì giờ có UI cố định)
+if mainUI:FindFirstChild("MobileControls") then
+	mainUI.MobileControls:Destroy()
+	print("DEBUG: MobileControls frame removed.")
+end
+
+-- === THÊM CÁC NỀN TẢNG THẾ GIỚI ===
+local function createWorldPlatform(name, position, size, color)
+	local platform = Instance.new("Part")
+	platform.Name = name
+	platform.Size = size
+	platform.Position = position
+	platform.Color = color
+	platform.Material = Enum.Material.Grass -- Đặt vật liệu là cỏ
+	platform.Anchored = true
+	platform.CanCollide = true
+	platform.Parent = game:GetService("Workspace")
+	print("DEBUG: Created world platform '" .. name .. "' at " .. tostring(position))
+	return platform
+end
+
+-- Tạo Phàm Giới
+local phamGioiPlatform = createWorldPlatform("PhamGioiPlatform", PHAM_GIOI_POS, WORLD_PLATFORM_SIZE_PHAM_GIOI, PHAM_GIOI_COLOR)
+
+-- Tạo Tu Tiên Giới
+local tuTienGioiPlatform = createWorldPlatform("TuTienGioiPlatform", TU_TIEN_GIOI_POS, WORLD_PLATFORM_SIZE_TU_TIEN, TU_TIEN_GIOI_COLOR)
+
+
+-- 📈 Tham số (Data)
+local realmList = {
+	"Phàm Nhân", -- NEW: Cảnh giới đầu tiên, không có tầng
+	"Luyện Khí", "Trúc Cơ", "Kim Đan", "Nguyên Anh", "Hóa Thần", "Luyện Hư", "Hợp Thể", "Đại Thừa", "Độ Kiếp",
+	"Chân Tiên", "Địa Tiên", "Huyền Tiên", "Thiên Tiên", "Kim Tiên", "Thái Ất Kim Tiên", "Đại La Kim Tiên",
+	"Hỗn Nguyên Đại La Kim Tiên", "Chuẩn Thánh", "Thánh Nhân", "Chuẩn Đế", "Đại Đế" -- Đại Đế là cảnh giới cuối cùng
+}
+local PHAM_NHAN_INDEX = 1 -- Chỉ số của cảnh giới Phàm Nhân
+local LUYEN_KHI_INDEX = 2 -- Chỉ số của Luyện Khí
+local KIM_DAN_INDEX = 4 -- Chỉ số của Kim Đan
+local DAI_DE_INDEX = #realmList -- Chỉ số của cảnh giới Đại Đế trong realmList
+
+local linhCanList = {
+	"Kim Linh Căn", "Mộc Linh Căn", "Thủy Linh Căn", "Hỏa Linh Căn", "Thổ Linh Căn", "Lôi Linh Căn", "Băng Linh Căn", "Quang Linh Căn", "Phong Linh Căn", "Ám Linh Căn",
+	"Không Gian Linh Căn", "Thời Gian Linh Căn", "Độc Linh Căn",
+	"Vận Mệnh Linh Căn", "Nhân Quả Linh Căn"
+}
+local theChatList = {
+	"Hoang Cổ Thánh Thể", "Thái Cổ Chiến Thể", "Bất Diệt Thể", "Bất Tử Thể",
+	"Võ Thể", "Kim Thân", "Bất Hoại Kim Thân", "Long Tượng Bá Thể",
+	"Tiên Thiên Đạo Thể", "Hỗn Độn Thể", "Vô Cấu Tiên Thể", "Đan Thể",
+	"Khí Vận Thể", "May Mắn Thể", "Minh Tiên Thể", "Hồn Thể",
+	"Thuần Âm Thể", "Thuần Dương Thể", "Thông Linh Thể",
+	"Chân Long Thể", "Phượng Hoàng Thể", "Kỳ Lân Thể",
+	"Thái Cổ Di Chủng Thể", "Vu Thần Thể", "Cổ Thần Thần", "Ma Thần Thần",
+	"Yêu Thần Thể", "Quỷ Thần Thể", "Nhân Vương Thể", "Bá Vương Thể"
+}
+
+-- Hệ thống Kiếp
+local kiepNames = {
+	[1] = "Nhất Kiếp", [2] = "Nhị Kiếp", [3] = "Tam Kiếp", [4] = "Tứ Kiếp",
+	[5] = "Ngũ Kiếp", [6] = "Lục Kiếp", [7] = "Thất Kiếp", [8] = "Bát Kiếp",
+	[9] = "Cửu Kiếp"
+}
+
+-- === HÀM HỖ TRỢ LƯU VÀ TẢI DỮ LIỆU BỀN BỈ DÙNG ATTRIBUTES ===
+local function getAttribute(name, defaultValue)
+	local value = player:GetAttribute(name)
+	if value == nil then
+		player:SetAttribute(name, defaultValue)
+		print("DEBUG: Initializing attribute '" .. name .. "' with default value: " .. tostring(defaultValue))
+		return defaultValue
+	end
+	print("DEBUG: Loaded attribute '" .. name .. "': " .. tostring(value))
+	return value
+end
+
+local function setAttribute(name, value)
+	player:SetAttribute(name, value)
+	print("DEBUG: Set attribute '" .. name .. "' to: " .. tostring(value))
+end
+
+-- Lấy dữ liệu từ Attributes hoặc khởi tạo mặc định nếu chưa có
+local maxChanNguyen = getAttribute("MaxChanNguyen", 500) -- Đảm bảo MaxChanNguyen được tải/khởi tạo trước
+local canhGioiIndex = getAttribute("CanhGioiIndex", PHAM_NHAN_INDEX) -- Bắt đầu là Phàm Nhân
+local tang = getAttribute("Tang", 0) -- Phàm Nhân không có tầng, nên khởi tạo là 0
+local tuVi = getAttribute("TuVi", 0)
+local maxTuVi = getAttribute("MaxTuVi", 100) -- maxTuVi ban đầu là 100
+local currentKhiHuyet = getAttribute("KhiHuyet", 100) -- Đã chỉnh Khí Huyết ban đầu của Phàm Nhân là 100
+local currentChanNguyen = getAttribute("ChanNguyen", maxChanNguyen) -- Khởi tạo Chân Nguyên đầy theo MaxChanNguyen
+local currentAge = getAttribute("Age", 20) -- Biến Tuổi
+local currentKi = getAttribute("Ki", 100) -- Khí ban đầu
+local maxKi = getAttribute("MaxKi", 100) -- Max Khí ban đầu
+
+-- Ngẫu nhiên Linh Căn và Thể Chất, chỉ khi chúng chưa được lưu
+local linhCanIndex = getAttribute("LinhCanIndex", math.random(1, #linhCanList))
+local theChatIndex = getAttribute("TheChatIndex", math.random(1, #theChatList))
+local currentKiep = getAttribute("Kiep", 0) -- 0: chưa Đại Đế, 1-9: Kiếp của Đại Đế
+local chuyenTheCount = getAttribute("ChuyenTheCount", 0) -- Số lần chuyển thế đã thực hiện (lần 0 là chưa chuyển thế lần nào)
+local maxUnlockedKiep = getAttribute("MaxUnlockedKiep", 0) -- Kiếp cao nhất có thể đạt được trong kiếp này (được mở khóa bởi Chuyển Thế)
+
+-- Đảm bảo maxUnlockedKiep được khởi tạo đúng nếu chuyenTheCount là 0 (chưa chuyển thế lần nào)
+-- Nếu chuyenTheCount là 0, thì maxUnlockedKiep mặc định phải là 1 (chỉ mở khóa Nhất Kiếp)
+if chuyenTheCount == 0 and maxUnlockedKiep == 0 then
+	maxUnlockedKiep = 1
+	setAttribute("MaxUnlockedKiep", maxUnlockedKiep)
+	print("DEBUG: Initialized MaxUnlockedKiep to 1 for new player (ChuyenTheCount is 0).")
+elseif chuyenTheCount > 0 and maxUnlockedKiep == 0 then
+	-- Nếu có Chuyển Thế nhưng maxUnlockedKiep lại là 0, tính lại cho an toàn
+	maxUnlockedKiep = math.min(chuyenTheCount + 1, 9)
+	setAttribute("MaxUnlockedKiep", maxUnlockedKiep)
+	print("DEBUG: Recalculated MaxUnlockedKiep based on existing ChuyenTheCount:", maxUnlockedKiep)
+end
+
+local tuLuyen = false
+local heSoLinhCan = 9000000000000000000000 -- Tốc độ tu luyện
+local isMovementLocked = false
+local tuLuyenTrack = nil
+
+-- Biến cho chức năng Thân Thể (đã loại bỏ isFlyJumping)
+local isThanTheActive = false -- Đã đồng nhất biến trạng thái
+local flyJumpBoost = 250 -- Lực nhảy cao hơn
+local flySpeed = 50 -- Tốc độ đi bộ khi bay
+local originalGravity = game.Workspace.Gravity -- Lấy trọng lực gốc của game
+local slowFallGravity = 20 -- Trọng lực khi rơi từ từ (Kim Đan Tầng 1)
+local defaultWalkSpeed = 16
+local defaultJumpPower = 50
+local airJumpForce = 80 -- Lực đẩy mỗi lần nhảy trên không
+
+-- NEW: Chi phí Chân Nguyên cho Thân Thể
+local CHAN_NGUYEN_PER_JUMP_COST = 50 -- Chi phí mỗi lần nhảy trên không (Infjump)
+local CHAN_NGUYEN_PER_SECOND_MOVE_COST = 5 -- Chi phí mỗi giây di chuyển
+
+-- NEW: Biến cho chức năng Tu Sĩ
+local isTuSiActive = false -- Trạng thái của chế độ Tu Sĩ
+local tuSiAnimTrack = nil -- Animation track cho Tu Sĩ
+
+-- === ID Animation ===
+local TU_LUYEN_ANIM_ID = "rbxassetid://123850459311366" -- ĐÃ CẬP NHẬT ANIMATION ID MỚI
+local THAN_THE_ANIM_ID = "rbxassetid://110143058252764" -- THÊM ANIMATION ID CHO THÂN THỂ TẠI ĐÂY
+local TU_SI_ANIM_ID = "rbxassetid://129701665182915" -- NEW: ID Animation cho Tu Sĩ (đặt tay sau lưng)
+
+-- === KHAI BÁO BIẾN CHO NHÂN VẬT VÀ CÁC THÀNH PHẦN ===
+local character
+local humanoid
+local rootPart
+local animator
+local healthChangedConnection
+
+-- === PHẦN CẦN THÊM ĐỂ ĐIỀU KHIỂN SỨC KHỎE NGƯỜI CHƠI ===
+-- Hàm này sẽ được gọi mỗi khi currentKhiHuyet thay đổi HOẶC khi Humanoid bị mất máu
+local function updatePlayerHealthAndStats(newMaxHealth)
+	print("DEBUG: updatePlayerHealthAndStats called with newMaxHealth:", newMaxHealth)
+	if humanoid then
+		humanoid.MaxHealth = newMaxHealth -- Cập nhật MaxHealth của Humanoid
+		humanoid.Health = newMaxHealth -- Hồi đầy máu của Humanoid về MaxHealth mới
+		-- ĐÃ SỬA: Hiển thị Khí Huyết dưới dạng hiện tại/tối đa
+		khiHuyetLabel.Text = "Khí Huyết: " .. tostring(math.floor(humanoid.Health)) .. "/" .. tostring(math.floor(humanoid.MaxHealth)) -- Cập nhật label
+		print(string.format("DEBUG: Humanoid stats updated: MaxHealth=%.2f, Health=%.2f. Speed/Jump buffs removed.",
+			humanoid.MaxHealth, humanoid.Health))
+	else
+		warn("DEBUG: Humanoid is nil in updatePlayerHealthAndStats. Cannot update player's health.")
+	end
+end
+
+-- Hàm khóa/mở khóa di chuyển của người chơi
+local function toggleMovementLock(lockState)
+	print("DEBUG: toggleMovementLock called. Proposed lockState:", tostring(lockState))
+	isMovementLocked = lockState
+	if humanoid then
+		humanoid.WalkSpeed = isMovementLocked and 0 or defaultWalkSpeed
+		humanoid.JumpPower = isMovementLocked and 0 or defaultJumpPower
+		print("DEBUG: Movement locked: " .. tostring(isMovementLocked) .." . WalkSpeed: " .. humanoid.WalkSpeed .." , JumpPower: " .. humanoid.JumpPower)
+	else
+		warn("DEBUG: Humanoid is nil in toggleMovementLock. Cannot lock/unlock movement.")
+	end
+end
+
+-- Hàm cập nhật hiển thị và text cho các nút hành động
+local function updateActionButtonsVisibility()
+
+	-- Điều kiện để hiện nút Chuyển Thế
+	-- Chỉ hiện nếu đang là Đại Đế, đã đạt đủ Kiếp tối đa cho lần chuyển thế này, và đủ Tu Vi
+	if canhGioiIndex == DAI_DE_INDEX and currentKiep == maxUnlockedKiep and tuVi >= maxTuVi then
+		dotPhaFrame.Visible = false -- Ẩn nút Đột Phá
+		chuyenTheFrame.Visible = true -- Hiện nút Chuyển Thế
+		chuyenTheButton.Text = "Chuyển Thế (V)" -- Không cần hiển thị Kiếp ở đây
+		chuyenTheButton.Active = true
+		chuyenTheButton.BackgroundTransparency = 0.5
+		print("DEBUG: Chuyển Thế button is visible. Đột Phá button is hidden.")
+	else -- Các trường hợp khác
+		dotPhaFrame.Visible = true
+		chuyenTheFrame.Visible = false
+
+		if tuVi >= maxTuVi then
+			dotPhaButton.Text = "Đột Phá (B)"
+			dotPhaButton.Active = true
+			dotPhaButton.BackgroundTransparency = 0.5
+			print("DEBUG: Đột Phá button is active and visible (Tu Vi đủ).")
+		else
+			dotPhaButton.Text = "Đột Phá (B)" -- Vẫn hiển thị "Đột Phá (B)" nhưng nút bị vô hiệu hóa
+			dotPhaButton.Active = false
+			dotPhaButton.BackgroundTransparency = 0.8
+			print("DEBUG: Đột Phá button is inactive and visible (Tu Vi chưa đủ).")
+		end
+
+		-- Logic riêng cho Đại Đế đã đạt giới hạn Kiếp
+		if canhGioiIndex == DAI_DE_INDEX and currentKiep >= maxUnlockedKiep then
+			dotPhaButton.Text = "Đã Đạt Giới Hạn Kiếp!"
+			dotPhaButton.Active = false
+			dotPhaButton.BackgroundTransparency = 0.8
+			print("DEBUG: Đại Đế đã đạt giới hạn Kiếp, Đột Phá button is inactive.")
+		end
+	end
+	-- Cập nhật text cho nút Tu Luyện
+	tuLuyenButton.Text = tuLuyen and "Dừng Tu Luyện" or "Tu Luyện (C)"
+	tuLuyenButton.BackgroundTransparency = tuLuyen and 0.2 or 0.5
+
+	-- Cập nhật text cho nút Thân Thể
+	thanTheButton.Text = isThanTheActive and "Dừng Thân Thể" or "Thân Thể"
+	thanTheButton.BackgroundTransparency = isThanTheActive and 0.2 or 0.5
+
+	-- Cập nhật text cho nút Tu Sĩ
+	tuSiButton.Text = isTuSiActive and "Dừng Tu Sĩ" or "Tu Sĩ" -- ĐÃ SỬA TEXT
+	tuSiButton.BackgroundTransparency = isTuSiActive and 0.2 or 0.5
+
+	print("DEBUG: Action button texts and transparencies updated.")
+end
+
+-- 🔄 Cập nhật UI (gọi mỗi khi chỉ số thay đổi)
+local function updateUI()
+	print("DEBUG: updateUI called. Updating labels and progress bar.")
+	-- Cập nhật hiển thị Cảnh Giới
+	if canhGioiIndex == PHAM_NHAN_INDEX then
+		canhGioiLabel.Text = "Cảnh Giới: " .. realmList[canhGioiIndex]
+	elseif canhGioiIndex == DAI_DE_INDEX then
+		canhGioiLabel.Text = "Cảnh Giới: " .. realmList[canhGioiIndex] .. (currentKiep > 0 and " " .. kiepNames[currentKiep] or "")
+	else -- Các cảnh giới khác có tầng
+		canhGioiLabel.Text = "Cảnh Giới: " .. realmList[canhGioiIndex] .. (tang > 0 and " Tầng " .. tang or "")
+	end
+
+	linhCanLabel.Text = "Linh Căn: " .. linhCanList[linhCanIndex]
+	theChatLabel.Text = "Thể Chất: " .. theChatList[theChatIndex]
+
+	-- Ensure humanoid exists before trying to access its health
+	if humanoid then
+		-- ĐÃ SỬA: Hiển thị Khí Huyết dưới dạng hiện tại/tối đa
+		khiHuyetLabel.Text = "Khí Huyết: " .. tostring(math.floor(humanoid.Health)) .. "/" .. tostring(math.floor(humanoid.MaxHealth))
+	else
+		khiHuyetLabel.Text = "Khí Huyết: Đang tải..."
+	end
+
+	chanNguyenLabel.Text = "Chân Nguyên: " .. tostring(math.floor(currentChanNguyen)) .. "/" .. tostring(math.floor(maxChanNguyen))
+	ageLabel.Text = "Tuổi: " .. tostring(math.floor(currentAge)) -- Hiển thị tuổi làm tròn
+
+	tuViBar:TweenSize(UDim2.new(tuVi / maxTuVi, 0, 1, 0), "Out", "Quad", 0.1, true)
+	print(string.format("DEBUG: UI updated. Canh Gioi: %s, Tu Vi: %.2f/%.2f, KhiHuyet: %s, ChanNguyen: %s, Age: %.2f",
+		canhGioiLabel.Text, tuVi, maxTuVi, khiHuyetLabel.Text, chanNguyenLabel.Text, currentAge))
+	updateActionButtonsVisibility() -- Đảm bảo các nút hiển thị đúng
+end
+
+-- Hàm để dịch chuyển nhân vật tới một vị trí (ĐÃ GIỮ LẠI, MẶC DÙ KHÔNG CÒN NÚT DỊCH CHUYỂN)
+local function teleportPlayer(position)
+	if character and humanoid then
+		humanoid.WalkSpeed = 0 -- Ngừng di chuyển khi dịch chuyển
+		humanoid.JumpPower = 0
+		character.HumanoidRootPart.CFrame = CFrame.new(position)
+		task.wait(0.1) -- Đợi một chút để nhân vật ổn định
+		humanoid.WalkSpeed = defaultWalkSpeed -- Khôi phục tốc độ mặc định
+		humanoid.JumpPower = defaultJumpPower
+	end
+end
+
+-- 🎬 Animation Tu Luyện (thiền)
+local function playTuLuyenAnimation()
+	print("DEBUG: playTuLuyenAnimation called.")
+	if not humanoid or not character then
+		warn("ERROR: Humanoid or Character is nil. Cannot play animation.")
+		return
+	end
+
+	-- Ensure animator exists
+	if not animator or not animator.Parent then
+		animator = humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			warn("ERROR: Animator not found on Humanoid. Creating new one.")
+			animator = Instance.new("Animator")
+			animator.Parent = humanoid
+		end
+	end
+
+	if TU_LUYEN_ANIM_ID ~= "" then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = TU_LUYEN_ANIM_ID
+		print("DEBUG: Attempting to load animation with ID:", TU_LUYEN_ANIM_ID)
+		local success, err = pcall(function()
+			tuLuyenTrack = animator:LoadAnimation(anim)
+		end)
+		if success and tuLuyenTrack then
+			tuLuyenTrack.Priority = Enum.AnimationPriority.Action
+			tuLuyenTrack.Looped = true
+			tuLuyenTrack:Play()
+			print("DEBUG: Playing Tu Luyen Animation:", TU_LUYEN_ANIM_ID)
+		else
+			warn("ERROR: Failed to load or play Tu Luyen Animation! Error:", err, "Animator:", animator, "AnimationId:", TU_LUYEN_ANIM_ID)
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Lỗi Animation";
+				Text = "Không thể tải/chơi animation! Kiểm tra ID và Output (F9).";
+				Duration = 4
+			})
+		end
+	else
+		warn("WARNING: AnimationId is empty for Tu Luyen Animation!")
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Lỗi Animation";
+			Text = "ID Animation Tu Luyện đang trống!";
+			Duration = 3
+		})
+	end
+end
+
+local function stopTuLuyenAnimation()
+	print("DEBUG: stopTuLuyenAnimation called.")
+	if tuLuyenTrack then
+		tuLuyenTrack:Stop()
+		tuLuyenTrack = nil
+		print("DEBUG: Stopped Tu Luyen Animation.")
+	end
+end
+print("DEBUG: stopTuLuyenAnimation defined.")
+
+
+-- NEW: Thân Thể Animation functions
+local thanTheAnimTrack = nil
+local function playThanTheAnimation()
+	print("DEBUG: playThanTheAnimation called for Thân Thể.")
+	if not humanoid or not character then
+		warn("ERROR: Humanoid or Character is nil. Cannot play Thân Thể animation.")
+		return
+	end
+
+	if not animator or not animator.Parent then
+		animator = humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			warn("ERROR: Animator not new one.")
+			animator = Instance.new("Animator")
+			animator.Parent = humanoid
+		end
+	end
+
+	if THAN_THE_ANIM_ID ~= "" and THAN_THE_ANIM_ID ~= "rbxassetid://" then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = THAN_THE_ANIM_ID
+		print("DEBUG: Attempting to load animation for Thân Thể with ID:", THAN_THE_ANIM_ID)
+		local success, err = pcall(function()
+			thanTheAnimTrack = animator:LoadAnimation(anim)
+		end)
+		if success and thanTheAnimTrack then
+			thanTheAnimTrack.Priority = Enum.AnimationPriority.Action
+			thanTheAnimTrack.Looped = true
+			thanTheAnimTrack:Play()
+			print("DEBUG: Playing Thân Thể Animation:", THAN_THE_ANIM_ID)
+
+			-- Debug: Check if animation is still playing after a short wait
+			task.wait(0.1)
+			if thanTheAnimTrack and thanTheAnimTrack.IsPlaying then
+				print("DEBUG: Thân Thể Animation is still playing after 0.1s. TimePosition:", thanTheAnimTrack.TimePosition)
+			else
+				print("DEBUG: Thân Thể Animation is NOT playing after 0.1s. It might have been stopped or overridden immediately.")
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Lỗi Animation Thân Thể";
+					Text = "Hoạt ảnh bị dừng/ghi đè ngay lập tức!";
+					Duration = 5
+				})
+			end
+
+		else
+			warn("ERROR: Failed to load or play Thân Thể Animation! Error:", err)
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Lỗi Animation Thân Thể";
+				Text = "Không thể tải/chơi animation Thân Thể! Kiểm tra ID và Output (F9).";
+				Duration = 4
+			})
+		end
+	else
+		warn("WARNING: AnimationId is empty or default for Thân Thể Animation!")
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Lỗi Animation Thân Thể";
+			Text = "ID Animation Thân Thể đang trống hoặc là giá trị mặc định! Vui lòng thay đổi.";
+			Duration = 3
+		})
+	end
+end
+
+local function stopThanTheAnimation()
+	if thanTheAnimTrack then
+		thanTheAnimTrack:Stop()
+		thanTheAnimTrack = nil
+		print("DEBUG: Stopped Thân Thể Animation.")
+	end
+end
+
+-- NEW: Hàm cho chế độ Tu Sĩ
+local function playTuSiAnimation()
+	print("DEBUG: playTuSiAnimation called.")
+	if not humanoid or not character then
+		warn("ERROR: Humanoid or Character is nil. Cannot play Tu Sĩ animation.")
+		return
+	end
+
+	if not animator or not animator.Parent then
+		animator = humanoid:FindFirstChildOfClass("Animator")
+		if not animator then
+			warn("ERROR: Animator not found on Humanoid. Creating new one.")
+			animator = Instance.new("Animator")
+			animator.Parent = humanoid
+		end
+	end
+
+	if TU_SI_ANIM_ID ~= "" and TU_SI_ANIM_ID ~= "rbxassetid://" then
+		local anim = Instance.new("Animation")
+		anim.AnimationId = TU_SI_ANIM_ID
+		print("DEBUG: Attempting to load animation for Tu Sĩ with ID:", TU_SI_ANIM_ID)
+		local success, err = pcall(function()
+			tuSiAnimTrack = animator:LoadAnimation(anim)
+		end)
+		if success and tuSiAnimTrack then
+			tuSiAnimTrack.Priority = Enum.AnimationPriority.Action
+			tuSiAnimTrack.Looped = true
+			tuSiAnimTrack:Play()
+			print("DEBUG: Playing Tu Sĩ Animation:", TU_SI_ANIM_ID)
+		else
+			warn("ERROR: Failed to load or play Tu Sĩ Animation! Error:", err)
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Lỗi Animation Tu Sĩ";
+				Text = "Không thể tải/chơi animation Tu Sĩ! Kiểm tra ID và Output (F9).";
+				Duration = 4
+			})
+		end
+	else
+		warn("WARNING: AnimationId is empty or default for Tu Sĩ Animation!")
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Lỗi Animation Tu Sĩ";
+			Text = "ID Animation Tu Sĩ đang trống hoặc là giá trị mặc định! Vui lòng thay đổi.";
+			Duration = 3
+		})
+	end
+end
+
+local function stopTuSiAnimation()
+	if tuSiAnimTrack then
+		tuSiAnimTrack:Stop()
+		tuSiAnimTrack = nil
+		print("DEBUG: Stopped Tu Sĩ Animation.")
+	end
+end
+
+-- Hàm xử lý logic bật/tắt tu luyện (chỉ animation và di chuyển)
+local function toggleTuLuyenState()
+	print("DEBUG: toggleTuLuyenState called. Current tuLuyen state:", tuLuyen)
+	-- Nếu đang bật Tu Luyện, thì tắt nó
+	if tuLuyen then
+		tuLuyen = false
+		stopTuLuyenAnimation()
+		toggleMovementLock(false) -- Mở di chuyển khi dừng tu luyện
+	else -- Nếu đang tắt Tu Luyện, thì bật nó và tắt các chế độ khác
+		tuLuyen = true
+		playTuLuyenAnimation()
+		toggleMovementLock(true) -- Khóa di chuyển khi tu luyện
+
+		-- Đảm bảo tắt các trạng thái khác nếu đang bật
+		if isThanTheActive then
+			isThanTheActive = false
+			stopThanTheAnimation()
+			if humanoid then
+				humanoid.WalkSpeed = defaultWalkSpeed
+				humanoid.JumpPower = defaultJumpPower
+				humanoid.UseGravity = true
+			end
+		end
+		if isTuSiActive then
+			isTuSiActive = false
+			stopTuSiAnimation()
+		end
+	end
+	updateActionButtonsVisibility() -- Cập nhật text/hiển thị nút
+	print("DEBUG: New tuLuyen state: " .. tostring(tuLuyen))
+end
+
+print("DEBUG: toggleTuLuyenState defined.")
+
+local function toggleThanTheState()
+	print("DEBUG: toggleThanTheState called. Current ThanThe state:", isThanTheActive)
+	if isThanTheActive then -- Nếu đang bật Thân Thể, thì tắt nó
+		isThanTheActive = false
+		stopThanTheAnimation()
+		if humanoid then
+			humanoid.WalkSpeed = defaultWalkSpeed -- Khôi phục tốc độ mặc định
+			humanoid.JumpPower = defaultJumpPower -- Khôi phục lực nhảy mặc định
+			humanoid.UseGravity = true            -- Khôi phục trọng lực
+		end
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Chế độ Thân Thể";
+			Text = "Chế độ Thân Thể đã được tắt.";
+			Duration = 3
+		})
+	else -- Nếu đang tắt Thân Thể, thì bật nó và tắt các chế độ khác
+		isThanTheActive = true
+		playThanTheAnimation()
+		if humanoid then
+			humanoid.WalkSpeed = flySpeed     -- Tăng tốc độ
+			humanoid.JumpPower = flyJumpBoost -- Tăng lực nhảy
+			humanoid.UseGravity = false       -- Vô hiệu hóa trọng lực (tạo hiệu ứng lơ lửng/inf jump)
+		end
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Chế độ Thân Thể";
+			Text = "Chế độ Thân Thể đã được kích hoạt! Tăng tốc độ, nhảy cao và khả năng Hư Không (lơ lửng).";
+			Duration = 4
+		})
+
+		-- Đảm bảo tắt các trạng thái khác nếu đang bật
+		if tuLuyen then
+			tuLuyen = false
+			stopTuLuyenAnimation()
+			toggleMovementLock(false)
+		end
+		if isTuSiActive then
+			isTuSiActive = false
+			stopTuSiAnimation()
+		end
+	end
+	updateUI() -- Cập nhật UI
+	print("DEBUG: New ThanThe state: " .. tostring(isThanTheActive))
+end
+print("DEBUG: toggleThanTheState defined.")
+
+local function toggleTuSiState()
+	print("DEBUG: toggleTuSiState called. Current Tu Sĩ state:", isTuSiActive)
+	if isTuSiActive then -- Nếu đang bật Tu Sĩ, thì tắt nó
+		isTuSiActive = false
+		stopTuSiAnimation()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Chế độ Tu Sĩ";
+			Text = "Chế độ Tu Sĩ đã được tắt.";
+			Duration = 3
+		})
+	else -- Nếu đang tắt Tu Sĩ, thì bật nó và tắt các chế độ khác
+		isTuSiActive = true
+		playTuSiAnimation()
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Chế độ Tu Sĩ";
+			Text = "Chế độ Tu Sĩ đã được kích hoạt! Bạn có vẻ như một Tu Tiên Giả.";
+			Duration = 4
+		})
+
+		-- Đảm bảo tắt các trạng thái khác nếu đang bật
+		if tuLuyen then
+			tuLuyen = false
+			stopTuLuyenAnimation()
+			toggleMovementLock(false)
+		end
+		if isThanTheActive then
+			isThanTheActive = false
+			stopThanTheAnimation()
+			if humanoid then
+				humanoid.WalkSpeed = defaultWalkSpeed
+				humanoid.JumpPower = defaultJumpPower
+				humanoid.UseGravity = true
+			end
+		end
+	end
+	updateUI()
+	print("DEBUG: New Tu Sĩ state: " .. tostring(isTuSiActive))
+end
+print("DEBUG: toggleTuSiState defined.")
+
+-- Các hàm xử lý giao diện
+-- Hàm hiển thị thông báo
+local function showNotification(title, message, duration)
+	game:GetService("StarterGui"):SetCore("SendNotification", {
+		Title = title,
+		Text = message,
+		Duration = duration
+	})
+end
+
+-- *** CHỨC NĂNG CHÍNH: ĐỘT PHÁ *** (UPDATED by user)
+local function dotPha()
+	print("DEBUG: dotPha() called.")
+	-- if tuLuyen then toggleTuLuyenState() end -- Đã comment dòng này để không dừng tu luyện khi đột phá
+
+	if tuVi >= maxTuVi then
+		if rootPart then
+			local explosion = Instance.new("Explosion")
+			explosion.Parent = game:GetService("Workspace")
+			explosion.Position = rootPart.Position
+			explosion.BlastPressure = 0
+			explosion.DestroyJointRadiusPercent = 0
+			explosion.ExplosionType = Enum.ExplosionType.NoCraters
+			explosion.Visible = true
+			print("DEBUG: Explosion effect created at player position during Breakthrough.")
+		else
+			warn("DEBUG: rootPart is nil, cannot create explosion effect for Breakthrough.")
+		end
+		tuVi = 0 -- Reset Tu Vi
+		setAttribute("TuVi", tuVi)
+		-- Logic for Đại Đế and Kiếp progression
+		if canhGioiIndex == DAI_DE_INDEX then
+			if currentKiep < maxUnlockedKiep then
+				currentKiep = currentKiep + 1
+				setAttribute("Kiep", currentKiep)
+				maxTuVi = 100 * (2 ^ currentKiep) * 100 -- Max Tu Vi based on Kiếp, lũy thừa
+				setAttribute("MaxTuVi", maxTuVi)
+				print("DEBUG: Đại Đế đột phá Kiếp " .. currentKiep .. ". MaxTuVi mới: " .. maxTuVi)
+
+				-- Buff Khí Huyết và Chân Nguyên cực mạnh cho Đại Đế theo Kiếp
+				local baseBuff = 10000000 * (currentKiep^2)
+				local randomBuff = math.random(10000000, 5000000000)
+
+				currentKhiHuyet = currentKhiHuyet + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				setAttribute("KhiHuyet", currentKhiHuyet)
+				updatePlayerHealthAndStats(currentKhiHuyet)
+
+				currentChanNguyen = currentChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				maxChanNguyen = maxChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				setAttribute("ChanNguyen", currentChanNguyen)
+				setAttribute("MaxChanNguyen", maxChanNguyen)
+
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đột Phá Thành Công";
+					Text = "Chúc mừng Đại Đế đã đột phá lên " .. kiepNames[currentKiep] .. "! Khí Huyết và Chân Nguyên tăng cực mạnh!",
+					Duration = 4
+				})
+			else
+				print("DEBUG: Đại Đế đã đạt giới hạn Kiếp cho kiếp này.")
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đã Đạt Giới Hạn Kiếp";
+					Text = "Bạn đã đạt giới hạn " .. kiepNames[maxUnlockedKiep] .. " cho kiếp này. Hãy Chuyển Thế để mở khóa thêm!",
+					Duration = 4
+				})
+				updateActionButtonsVisibility()
+				return
+			end
+		else -- Not Dai De realm, normal breakthrough for tier or next realm
+			local currentRealmIsPhamNhan = (canhGioiIndex == PHAM_NHAN_INDEX)
+			local atMaxTier = (tang == 9)
+			if currentRealmIsPhamNhan then
+				-- Phàm Nhân -> Luyện Khí Tầng 1 (không có buff Khí Huyết cụ thể ở đây, chỉ set khởi điểm)
+				canhGioiIndex = LUYEN_KHI_INDEX
+				tang = 1
+				maxTuVi = 100 * 2 -- Base MaxTuVi for Luyện Khí Tầng 1
+				setAttribute("MaxTuVi", maxTuVi)
+				currentKhiHuyet = currentKhiHuyet + 5000000 -- Buff khởi điểm khi từ Phàm Nhân lên Luyện Khí
+				setAttribute("KhiHuyet", currentKhiHuyet)
+				updatePlayerHealthAndStats(currentKhiHuyet)
+				currentChanNguyen = currentChanNguyen + 5000000
+				maxChanNguyen = maxChanNguyen + 5000000
+				setAttribute("ChanNguyen", currentChanNguyen)
+				setAttribute("MaxChanNguyen", maxChanNguyen)
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đột Phá Thành Công";
+					Text = "Chúc mừng bạn đã đột phá lên " .. realmList[canhGioiIndex] .. " Tầng " .. tang .. "! Khí Huyết và Chân Nguyên tăng mạnh!",
+					Duration = 4
+				})
+			elseif not atMaxTier then
+				-- Increment tier (Tầng 1-8)
+				tang = tang + 1
+				maxTuVi = maxTuVi * 1.5 -- MaxTuVi increases for next tier
+				setAttribute("MaxTuVi", maxTuVi)
+				-- Buff for tier advancement
+				local baseBuff = 500 * (canhGioiIndex^2) * tang
+				local randomBuff = math.random(500, 500000)
+				currentKhiHuyet = currentKhiHuyet + (baseBuff + randomBuff)
+				setAttribute("KhiHuyet", currentKhiHuyet)
+				updatePlayerHealthAndStats(currentKhiHuyet)
+				currentChanNguyen = currentChanNguyen + ((baseBuff * 1.2) + (randomBuff * 1.2))
+				maxChanNguyen = maxChanNguyen + ((baseBuff * 1.2) + (randomBuff * 1.2))
+				setAttribute("ChanNguyen", currentChanNguyen)
+				setAttribute("MaxChanNguyen", maxChanNguyen)
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đột Phá Tầng Thành Công";
+					Text = "Chúc mừng bạn đã đột phá lên " .. realmList[canhGioiIndex] .. " Tầng " .. tang .. "! Khí Huyết và Chân Nguyên tăng!",
+					Duration = 4
+				})
+			elseif atMaxTier and canhGioiIndex < DAI_DE_INDEX - 1 then
+				-- At Tầng 9, but not the last realm before Đại Đế
+				-- Advance to next realm
+				canhGioiIndex = canhGioiIndex + 1
+				tang = 1 -- New realm starts at Tầng 1
+				maxTuVi = maxTuVi * 2 -- MaxTuVi doubles for new realm
+				setAttribute("MaxTuVi", maxTuVi)
+				-- Buff for new realm
+				local baseBuff = 1000 * (canhGioiIndex^3)
+				local randomBuff = math.random(1000, 50000000)
+				currentKhiHuyet = currentKhiHuyet + (baseBuff + randomBuff)
+				setAttribute("KhiHuyet", currentKhiHuyet)
+				updatePlayerHealthAndStats(currentKhiHuyet)
+				currentChanNguyen = currentChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				maxChanNguyen = maxChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				setAttribute("ChanNguyen", currentChanNguyen)
+				setAttribute("MaxChanNguyen", maxChanNguyen)
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đột Phá Cảnh Giới Thành Công";
+					Text = "Chúc mừng bạn đã đột phá lên " .. realmList[canhGioiIndex] .. " Tầng " .. tang .. "! Khí Huyết và Chân Nguyên tăng mạnh!",
+					Duration = 4
+				})
+			elseif atMaxTier and canhGioiIndex == DAI_DE_INDEX - 1 then
+				-- Last realm before Dai De at Tầng 9 -> Advance to Dai De Nhất Kiếp
+				canhGioiIndex = DAI_DE_INDEX
+				tang = 0 -- Dai De has no tiers
+				currentKiep = 1 -- Start at Nhất Kiếp
+				maxTuVi = 100 * (2 ^ currentKiep) * 100 -- Max Tu Vi based on Kiếp
+				setAttribute("MaxTuVi", maxTuVi)
+				-- Buff for Dai De (these lines were already there)
+				local baseBuff = 10000000
+				local randomBuff = math.random(10000000, 5000000000)
+				currentKhiHuyet = currentKhiHuyet + (baseBuff + randomBuff)
+				setAttribute("KhiHuyet", currentKhiHuyet)
+				updatePlayerHealthAndStats(currentKhiHuyet)
+				currentChanNguyen = currentChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				maxChanNguyen = maxChanNguyen + ((baseBuff * 1.5) + (randomBuff * 1.5))
+				setAttribute("ChanNguyen", currentChanNguyen)
+				setAttribute("MaxChanNguyen", maxChanNguyen)
+				game:GetService("StarterGui"):SetCore("SendNotification", {
+					Title = "Đột Phá Thành Công";
+					Text = "Chúc mừng bạn đã đột phá lên cảnh giới " .. realmList[canhGioiIndex] .. " " .. kiepNames[currentKiep] .. "! Khí Huyết và Chân Nguyên tăng cực mạnh!",
+					Duration = 4
+				})
+			end
+			-- Logic đặc biệt cho cảnh giới Kim Đan (có thể bay/lơ lửng)
+			if canhGioiIndex >= KIM_DAN_INDEX then
+				-- Vô hiệu hóa trọng lực nhẹ khi đạt Kim Đan
+				game.Workspace.Gravity = slowFallGravity
+				showNotification("Kim Đan Diệu Pháp!", "Khi đạt Kim Đan, trọng lực được giảm nhẹ, cho phép bạn di chuyển linh hoạt hơn!", 4)
+				print("DEBUG: Trọng lực giảm nhẹ khi đạt Kim Đan.")
+			end
+
+			-- Dịch chuyển tới Tu Tiên Giới khi đạt Kim Đan (giả định tu tiên giới là nơi dành cho Kim Đan trở lên)
+			if canhGioiIndex == KIM_DAN_INDEX and tang == 1 then
+				showNotification("Vấn Đạo Tiên Giới!", "Bạn đã đạt Kim Đan Tầng 1! Cánh cổng Tu Tiên Giới đã mở ra cho bạn.", 5)
+				teleportPlayer(TU_TIEN_GIOI_POS)
+				print("DEBUG: Đã dịch chuyển đến Tu Tiên Giới.")
+			end
+		end
+	else
+		game:GetService("StarterGui"):SetCore("SendNotification", {
+			Title = "Không đủ Tu Vi";
+			Text = "Bạn chưa tích lũy đủ Tu Vi để Đột Phá!",
+			Duration = 3
+		})
+		print("DEBUG: Đột Phá failed: Not enough Tu Vi.")
+	end
+	setAttribute("Tang", tang)
+	setAttribute("CanhGioiIndex", canhGioiIndex)
+	updateUI() -- Make sure UI is updated after any breakthrough
+end
+
+
+local function chuyenTheVePhamNhan()
+	print("DEBUG: chuyenTheVePhamNhan called.")
+	if tuLuyen then toggleTuLuyenState() end -- Dừng tu luyện nếu đang tu luyện
+
+	-- Đảm bảo chỉ chuyển thế khi đủ điều kiện
+	if canhGioiIndex == DAI_DE_INDEX and currentKiep == maxUnlockedKiep and tuVi >= maxTuVi then
+		-- Tăng số lần chuyển thế
+		chuyenTheCount = chuyenTheCount + 1
+		setAttribute("ChuyenTheCount", chuyenTheCount)
+
+		-- Reset về Phàm Nhân
+		canhGioiIndex = PHAM_NHAN_INDEX
+		tang = 0
+		tuVi = 0
+		maxTuVi = 100 -- Reset maxTuVi
+		currentKhiHuyet = 100 -- Reset Khí Huyết (đã chỉnh về 100)
+		currentChanNguyen = 500 -- Reset Chân Nguyên
+		maxChanNguyen = 500
+		currentAge = 20 -- Reset tuổi
+		currentKiep = 0 -- Reset Kiếp
+		maxUnlockedKiep = math.min(chuyenTheCount + 1, 9) -- Mở khóa Kiếp tiếp theo
+		currentKi = 100 -- Reset Khí
+		maxKi = 100 -- Reset Max Khí
+
+		-- Lưu các thuộc tính mới
+		setAttribute("CanhGioiIndex", canhGioiIndex)
+		setAttribute("Tang", tang)
+		setAttribute("TuVi", tuVi)
+		setAttribute("MaxTuVi", maxTuVi)
+		setAttribute("KhiHuyet", currentKhiHuyet)
+		setAttribute("ChanNguyen", currentChanNguyen)
+		setAttribute("MaxChanNguyen", maxChanNguyen)
+		setAttribute("Age", currentAge)
+		setAttribute("Kiep", currentKiep)
+		setAttribute("MaxUnlockedKiep", maxUnlockedKiep)
+		setAttribute("Ki", currentKi)
+		setAttribute("MaxKi", maxKi)
+
+		game.Workspace.Gravity = originalGravity -- Khôi phục trọng lực về mặc định
+
+		-- Cập nhật HP của Humanoid
+		updatePlayerHealthAndStats(currentKhiHuyet)
+
+		showNotification("Chuyển Thế Thành Công!", "Bạn đã chuyển thế thành công và trở về Phàm Nhân để bắt đầu một hành trình mới! Kiếp tiếp theo đã được mở khóa!", 6)
+		print("DEBUG: Chuyển Thế thành công. Trở về Phàm Nhân, Kiếp Nạn mở khóa: " .. maxUnlockedKiep)
+		teleportPlayer(PHAM_GIOI_POS) -- Dịch chuyển về Phàm Giới
+	else
+		showNotification("Chưa Đủ Điều Kiện Chuyển Thế", "Bạn cần đạt Đại Đế, hoàn thành " .. kiepNames[maxUnlockedKiep] .. " và tích lũy đủ Tu Vi để chuyển thế.", 5)
+		print("DEBUG: Chuyển thế thất bại: Chưa đủ điều kiện.")
+	end
+	updateUI()
+end
+-- === KẾT NỐI SỰ KIỆN ===
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = character:WaitForChild("Humanoid")
+	rootPart = character:WaitForChild("HumanoidRootPart")
+	animator = humanoid:WaitForChild("Animator")
+
+	-- Khôi phục tốc độ và lực nhảy về mặc định khi nhân vật tải lại (reset)
+	humanoid.WalkSpeed = defaultWalkSpeed
+	humanoid.JumpPower = defaultJumpPower
+	humanoid.UseGravity = true -- Đảm bảo trọng lực bình thường
+
+	-- Đảm bảo tắt mọi trạng thái buff nếu reset nhân vật
+	tuLuyen = false
+	isThanTheActive = false
+	isTuSiActive = false -- NEW: Reset trạng thái Tu Sĩ
+	toggleMovementLock(false) -- Đảm bảo di chuyển được mở
+	stopTuLuyenAnimation()
+	stopThanTheAnimation()
+	stopTuSiAnimation() -- NEW: Dừng animation Tu Sĩ
+
+	-- Cập nhật HP/MP sau khi tải lại nhân vật
+	updatePlayerHealthAndStats(getAttribute("KhiHuyet", 100)) -- Tải lại KhiHuyet và cập nhật máu (đã chỉnh về 100)
+
+	updateUI()
+end)
+
+-- Kết nối nút Tu Luyện
+if tuLuyenButton then
+	tuLuyenButton.MouseButton1Click:Connect(toggleTuLuyenState)
+else
+	warn("TuLuyenButton not found!")
+end
+
+-- Kết nối nút Đột Phá
+if dotPhaButton then
+	dotPhaButton.MouseButton1Click:Connect(dotPha)
+else
+	warn("DotPhaButton not found!")
+end
+
+-- Kết nối nút Chuyển Thế
+if chuyenTheButton then
+	chuyenTheButton.MouseButton1Click:Connect(chuyenTheVePhamNhan)
+else
+	warn("ChuyenTheButton not found!")
+end
+
+-- Kết nối nút Thân Thể
+if thanTheButton then
+	thanTheButton.MouseButton1Click:Connect(toggleThanTheState)
+else
+	warn("ThanTheButton not found!")
+end
+
+-- NEW: Kết nối nút Tu Sĩ
+if tuSiButton then
+	tuSiButton.MouseButton1Click:Connect(toggleTuSiState)
+else
+	warn("TuSiButton not found!")
+end
+
+-- === KẾT NỐI SỰ KIỆN KHÁC (ví dụ: các nút dịch chuyển thế giới đã bị xóa) ===
+
+-- Xử lý input từ bàn phím
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+	if gameProcessedEvent then return end
+
+	-- Phím C cho Tu Luyện
+	if input.KeyCode == Enum.KeyCode.C then
+		toggleTuLuyenState()
+	end
+
+	-- Phím B cho Đột Phá
+	if input.KeyCode == Enum.KeyCode.B then
+		dotPha()
+	end
+
+	-- Phím V cho Chuyển Thế
+	if input.KeyCode == Enum.KeyCode.V then
+		if chuyenTheFrame.Visible and chuyenTheButton.Active then
+			chuyenTheVePhamNhan()
+		end
+	end
+
+	-- Phím F cho Thân Thể
+	if input.KeyCode == Enum.KeyCode.F then
+		toggleThanTheState()
+	end
+
+	-- NEW: Phím H cho Tu Sĩ
+	if input.KeyCode == Enum.KeyCode.H then
+		toggleTuSiState()
+	end
+end)
+
+-- === LOGIC GAME LOOP (RunService) ===
+RunService.Heartbeat:Connect(function(deltaTime)
+	-- Cập nhật HP/MP nếu có
+	if humanoid then
+		-- Humanoid.MaxHealth được cập nhật bởi currentKhiHuyet
+		humanoid.Health = math.min(humanoid.Health, humanoid.MaxHealth) -- Đảm bảo máu không vượt quá MaxHealth
+	end
+
+	-- Logic tu luyện
+	if tuLuyen then
+		tuVi = tuVi + (heSoLinhCan * deltaTime)
+		if tuVi >= maxTuVi then
+			tuVi = maxTuVi -- Giới hạn tu vi ở max
+			-- Tự động đột phá nếu tu vi đầy và là Phàm Nhân (để bắt đầu tu luyện)
+			if canhGioiIndex == PHAM_NHAN_INDEX then
+				dotPha()
+			end
+		end
+		setAttribute("TuVi", tuVi)
+		updateUI()
+	end
+
+	-- Khí tự động hồi phục (chỉ khi không tu luyện)
+	if not tuLuyen and currentKi < maxKi then
+		currentKi = math.min(maxKi, currentKi + 1 * deltaTime) -- Hồi 1 Khí mỗi giây
+		setAttribute("Ki", currentKi)
+		updateUI()
+	end
+
+	-- Logic hồi phục Chân Nguyên (nếu không ở chế độ Thân Thể hoặc không di chuyển)
+	if not isThanTheActive or humanoid.MoveDirection.Magnitude == 0 then
+		if currentChanNguyen < maxChanNguyen then
+			currentChanNguyen = math.min(maxChanNguyen, currentChanNguyen + 0.5 * deltaTime) -- Hồi 0.5 Chân Nguyên mỗi giây
+			setAttribute("ChanNguyen", currentChanNguyen)
+			updateUI()
+		else
+			-- Nếu chân nguyên đầy thì không cần cập nhật UI liên tục
+			-- nhưng vẫn đảm bảo giá trị đúng
+			currentChanNguyen = maxChanNguyen
+			setAttribute("ChanNguyen", currentChanNguyen)
+		end
+	end
+
+	-- Chân Nguyên tiêu hao khi ở chế độ Thân Thể và di chuyển
+	-- Sử dụng isThanTheActive để kiểm tra trạng thái
+	if isThanTheActive and humanoid and humanoid.MoveDirection.Magnitude > 0 then
+		local chanNguyenConsumed = CHAN_NGUYEN_PER_SECOND_MOVE_COST * deltaTime
+		if currentChanNguyen > chanNguyenConsumed then
+			currentChanNguyen = currentChanNguyen - chanNguyenConsumed
+			setAttribute("ChanNguyen", currentChanNguyen)
+			updateUI() -- Cập nhật UI để phản ánh sự thay đổi của Chân Nguyên
+		else
+			currentChanNguyen = 0 -- Đặt Chân Nguyên về 0
+			setAttribute("ChanNguyen", currentChanNguyen)
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Chân Nguyên cạn kiệt";
+				Text = "Chân Nguyên đã cạn kiệt! Các hiệu ứng của Chế độ Thân Thể sẽ yếu đi.";
+				-- THAY ĐỔI THÔNG BÁO!
+				Duration = 3
+			})
+			print("DEBUG: Chân Nguyên depleted by movement. Buffs might be reduced.")
+		end
+	end
+
+	-- Tăng tuổi (mỗi 60 giây game = 1 năm)
+	currentAge = currentAge + deltaTime / 60
+	setAttribute("Age", currentAge)
+
+	-- Kiểm tra kiếp (mỗi khi tuổi đạt mốc 100)
+	if math.floor(currentAge) >= 100 and (math.floor(currentAge) % 100 == 0) and not getAttribute("KiepCheckedForAge", false) then -- Cứ mỗi 100 năm kiểm tra 1 lần
+		setAttribute("KiepCheckedForAge", true) -- Đánh dấu đã kiểm tra cho mốc tuổi này
+
+		if canhGioiIndex == DAI_DE_INDEX and currentKiep < maxUnlockedKiep then
+			-- Nếu là Đại Đế và còn Kiếp để đột phá
+			-- Không tự động đột phá Kiếp, mà người chơi phải click nút Đột Phá
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Kiếp Nạn Sắp Đến!";
+				Text = "Bạn đã sống một thế kỷ! Hãy chuẩn bị đột phá Kiếp Nạn để nâng cao cảnh giới!";
+				Duration = 5
+			})
+			print("DEBUG: Kiep Nạn sắp đến cho Đại Đế.")
+		elseif canhGioiIndex < DAI_DE_INDEX and tuVi >= maxTuVi then
+			-- Nếu chưa là Đại Đế và đủ Tu Vi để đột phá cảnh giới/tầng
+			-- Không tự động đột phá, người chơi phải click nút
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Cơ Duyên Đột Phá";
+				Text = "Tu Vi đã viên mãn! Bạn có thể đột phá cảnh giới tiếp theo!";
+				Duration = 5
+			})
+			print("DEBUG: Cơ duyên đột phá cho người chơi chưa Đại Đế.")
+		else
+			-- Trường hợp không đủ điều kiện đột phá khi đạt 100 tuổi hoặc hết kiếp
+			game:GetService("StarterGui"):SetCore("SendNotification", {
+				Title = "Kiếp Nạn Thất Bại";
+				Text = "Bạn đã sống một thế kỷ nhưng không thể đột phá. Bạn đã thất bại trong kiếp nạn này và trọng sinh!";
+				Duration = 5
+			})
+			-- Trọng sinh về Phàm Nhân
+			chuyenTheVePhamNhan()
+			print("DEBUG: Kiếp Nạn thất bại, chuyển thế về Phàm Nhân.")
+		end
+	elseif math.floor(currentAge) % 100 ~= 0 then
+		setAttribute("KiepCheckedForAge", false) -- Đặt lại cờ để có thể kiểm tra ở mốc tuổi tiếp theo
+	end
+
+	updateUI()
+end)
+
+-- === KHỞI TẠO BAN ĐẦU ===
+-- (Hàm initializeUI không được định nghĩa trong script, có thể đã bị xóa hoặc chưa hoàn thiện.
+-- Các giá trị được tải trực tiếp bên dưới)
+
+-- Tải các thuộc tính khi game bắt đầu
+tuVi = getAttribute("TuVi", 0)
+canhGioiIndex = getAttribute("CanhGioiIndex", PHAM_NHAN_INDEX)
+tang = getAttribute("Tang", 0)
+currentChanNguyen = getAttribute("ChanNguyen", maxChanNguyen)
+currentKi = getAttribute("Ki", 100) -- Tải Khí ban đầu
+maxKi = getAttribute("MaxKi", 100) -- Tải Max Khí ban đầu
+currentAge = getAttribute("Age", 20) -- Tải tuổi ban đầu
+maxUnlockedKiep = getAttribute("MaxUnlockedKiep", 1) -- Đảm bảo tải MaxUnlockedKiep
+
+-- Cập nhật MaxTuVi ban đầu dựa trên cảnh giới và tầng đã tải
+maxTuVi = canhGioiIndex * 1000 + tang * 100
+setAttribute("MaxTuVi", maxTuVi)
+
+-- Cập nhật HP của Humanoid dựa trên Khí Huyết đã tải
+updatePlayerHealthAndStats(getAttribute("KhiHuyet", 100)) -- Tải lại KhiHuyet và cập nhật máu (đã chỉnh về 100)
+
+updateUI()
+print("DEBUG: Script initialized and UI updated.")
